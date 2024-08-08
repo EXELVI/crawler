@@ -23,16 +23,20 @@
                     </div>
                     <div class="justify-content-between d-flex">
                         <button type="submit" class="btn btn-primary">Crawl</button>
-                        <div class="dropdown">
-                            <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"
-                                aria-expanded="false">
-                                <i id="dropicon" class="bi bi-display"></i>
-                            </button>
-                            <ul class="dropdown-menu">
-                                <li><button id="desktop" class="dropdown-item" type="button">Desktop</button></li>
-                                <li><button id="mobile" class="dropdown-item" type="button">Mobile</button></li>
-                                <li><button id="curl" class="dropdown-item" type="button">Terminal</button></li>
-                            </ul>
+                        <div class="btn-group">
+                            <input type="checkbox" class="btn-check" id="auto" autocomplete="off">
+                            <label class="btn btn-secondary" for="auto">Wait cookies consent</label>
+                            <div class="dropdown btn-group">
+                                <button class="btn btn-secondary dropdown-toggle" type="button"
+                                    data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i id="dropicon" class="bi bi-display"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><button id="desktop" class="dropdown-item" type="button">Desktop</button></li>
+                                    <li><button id="mobile" class="dropdown-item" type="button">Mobile</button></li>
+                                    <li><button id="curl" class="dropdown-item" type="button">Terminal</button></li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -103,6 +107,16 @@
             }
         })
 
+        document.getElementById('auto').addEventListener('change', function (e) {
+            if (e.target.checked) {
+                document.querySelector("label[for='auto']").classList.remove('btn-secondary')
+                document.querySelector("label[for='auto']").classList.add('btn-success')
+            } else {
+                document.querySelector("label[for='auto']").classList.add('btn-secondary')
+                document.querySelector("label[for='auto']").classList.remove('btn-success')
+            }
+        })
+
         document.addEventListener('DOMContentLoaded', function () {
 
             document.getElementById('form').addEventListener('submit', function (e) {
@@ -110,7 +124,8 @@
                 var url = document.getElementById('url').value
                 socket.emit('crawl', {
                     url,
-                    method
+                    method,
+                    waitCookies: document.getElementById('auto').checked
                 })
             })
 

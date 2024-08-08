@@ -34,13 +34,26 @@ let screenshots = [];
  * 
  * @param {puppeteer.Page} page  
  */
-async function cookieAccept(page) {
-  page.waitForNavigation({ waitUntil: 'domcontentloaded' }).then(async () => {
-    if (page.url().includes('youtube')) {
+async function cookieAccept(page, waitCookies) {
+  await page.waitForNavigation({ waitUntil: 'domcontentloaded' }).then(async () => {
+    if (new URL(page.url()).hostname.includes('youtube')) {
       // aria-label="Accetta l'utilizzo dei cookie e di altri dati per le finalità descritte"
+      if (waitCookies) await page.waitForSelector('button[aria-label="Accetta l\'utilizzo dei cookie e di altri dati per le finalità descritte"]');
       if (await page.$('button[aria-label="Accetta l\'utilizzo dei cookie e di altri dati per le finalità descritte"]')) {
         await page.click('button[aria-label="Accetta l\'utilizzo dei cookie e di altri dati per le finalità descritte"]');
       }
+    } else if (new URL(page.url()).hostname.includes('google')) {
+      const [button] = await page.$x("//button[contains(., 'Accetta tutto')]");
+      if (waitCookies) {
+        if (!button) {
+          setTimeout(async () => {
+            await page.waitForSelector('xpath///a[contains(text(), "Accetta tutto")]');
+            let [button] = page.$x("//button[contains(., 'Accetta tutto')]");
+            if (button) await button.click();
+          },1000)
+        }
+            }
+      if (button) await button.click();
     }
   }).catch(() => { });
 
@@ -81,14 +94,14 @@ io.on('connection', socket => {
   });
 
   socket.on("crawl", async (data) => {
-    let { url, method } = data;
+    let { url, method, waitCookies } = data;
     if (method === 'desktop' || method === 'mobile') {
       const screenshotsDir = path.join(__dirname, 'screenshots');
       if (!fs.existsSync(screenshotsDir)) {
         fs.mkdirSync(screenshotsDir);
       }
       const browser = await puppeteer.launch({
-        headless: false,
+        headless: true,
         executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
         //userDataDir: 'C:\\Users\\exelv\\AppData\Local\\BraveSoftware\\Brave-Browser\\User Data',
         defaultViewport: method === 'mobile' ? null : { width: 1920, height: 1080 }
@@ -98,6 +111,9 @@ io.on('connection', socket => {
 
       socket.emit('loading', 'Loading page...');
       const page = await browser.newPage()
+      if (!url.startsWith('http')) {
+        url = `http://${url}`;
+      }
       await page.goto(url);
 
       await page.reload()
@@ -113,7 +129,12 @@ io.on('connection', socket => {
       await page.waitForSelector('body');
 
       socket.emit('progress', 66);
-      cookieAccept(page);
+
+      if (waitCookies) {
+        await cookieAccept(page);
+      } else {
+        cookieAccept(page);
+      }
 
       socket.emit('progress', 100);
 
@@ -129,8 +150,11 @@ io.on('connection', socket => {
       }
 
       for (let i = 0; i < 10; i++) {
-        const screenshotPath = path.join(screenshotsDir, time, `screenshot-${i}.png`);
-        screenshots.push({ id: socket.id, folder: time, name: `screenshot-${i}.png` });
+        const screenshotPath = path.join(screenshotsDir, time.toString(), `screenshot-${i}.png`);
+        if (!fs.existsSync(path.join(screenshotsDir, time.toString()))) {
+          fs.mkdirSync(path.join(screenshotsDir, time.toString()));
+        }
+        screenshots.push({ id: socket.id, folder: time.toString(), name: `screenshot-${i}.png` });
         await page.screenshot({ path: screenshotPath });
         console.log(`Screenshot saved: ${screenshotPath}`);
         infos.screenshots.push(`screenshots/${time}/screenshot-${i}.png`);
