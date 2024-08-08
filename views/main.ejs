@@ -56,11 +56,37 @@
                 </div>
             </div>
             <div class="col-12 mt-5">
-                <div id="history" class="row mt-4">
+                <h2 class="text-center">History</h2>
+                <ul class="list-group">
 
-                </div>
+                    <% userDB.crawls.sort(sortedCrawls).forEach(crawl=> { %>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <a href="<%=crawl.url%>" target="_blank" rel="noopener noreferrer">
+                                <%=crawl.title%>
+                            </a>
+                            <div class="d-flex">
+                                <span class="badge bg-primary rounded-pill my-1 mx-1">
+                                    <%- crawl.method=='desktop'
+                                        ? "<i class='bi bi-display' data-bs-toggle='tooltip' title='Desktop'></i>" :
+                                        crawl.method=='mobile'
+                                        ? "<i class='bi bi-phone' data-bs-toggle='tooltip' title='Mobile'></i>"
+                                        : "<i class='bi bi-terminal' data-bs-toggle='tooltip' title='Terminal'></i>" %>
+                                </span>
+                                <span class="badge bg-primary rounded-pill my-1 mx-1">
+                                    <%=new Date(crawl.time).toLocaleString()%>
+                                </span>
+                                <%- `<span hidden id="ignoreCookies">${crawl.ignoreCookies}</span>` %>
+                                    <%- `<span hidden id="url">${crawl.url}</span>` %>
+                                        <%- `<span hidden id="method">${crawl.method}</span>` %>
+                                            <button class="btn btn-sm btn-primary ms-2" data-bs-toggle="collapse"
+                                                id="repeat" data-bs-target="#<%=crawl._id%>">Repeat</button>
+                            </div>
+                        </li>
+                        <% }) %>
+                </ul>
             </div>
         </div>
+    </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
@@ -69,6 +95,9 @@
 
 
     <script>
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+        const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+
         const socket = io();
         var myCarousel
         var carousel
@@ -111,6 +140,38 @@
                 document.getElementById('dropicon').classList.remove('bi-phone')
                 document.getElementById('dropicon').classList.remove('bi-display')
                 document.getElementById('dropicon').classList.add('bi-terminal')
+            } else if (e.target.id === 'repeat') {
+                var url = e.target.parentElement.parentElement.querySelector('#url').innerText
+                var methodd = e.target.parentElement.parentElement.querySelector('#method').innerText
+                var ignoreCookies = e.target.parentElement.parentElement.querySelector('#ignoreCookies').innerText
+                if (url) document.getElementById('url').value = url
+                if (ignoreCookies === 'true') {
+                    document.getElementById('auto').checked = true
+                    document.querySelector("label[for='auto']").classList.remove('btn-secondary')
+                    document.querySelector("label[for='auto']").classList.add('btn-success')
+                } else {
+                    document.getElementById('auto').checked = false
+                    document.querySelector("label[for='auto']").classList.add('btn-secondary')
+                    document.querySelector("label[for='auto']").classList.remove('btn-success')
+                }
+                if (methodd === 'desktop') {
+                    method = 'desktop'
+                    document.getElementById('dropicon').classList.remove('bi-phone')
+                    document.getElementById('dropicon').classList.add('bi-display')
+                    document.getElementById('dropicon').classList.remove('bi-terminal')
+                } else if (methodd === 'mobile') {
+                    method = 'mobile'
+                    document.getElementById('dropicon').classList.add('bi-phone')
+                    document.getElementById('dropicon').classList.remove('bi-display')
+                    document.getElementById('dropicon').classList.remove('bi-terminal')
+                } else if (methodd === 'curl') {
+                    method = 'curl'
+                    document.getElementById('dropicon').classList.remove('bi-phone')
+                    document.getElementById('dropicon').classList.remove('bi-display')
+                    document.getElementById('dropicon').classList.add('bi-terminal')
+                }
+
+
 
             }
         })
@@ -173,7 +234,7 @@
                     method,
                     ignoreCookies: document.getElementById('auto').checked,
                     userId: "<%=userId%>"
-                    
+
                 })
             })
 
@@ -233,7 +294,33 @@
                     result.appendChild(div)
                 }
 
+                var ul = document.querySelector('.list-group')
+                var li = document.createElement('li')
+                li.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center')
+                li.id = "li" + data.time
+                li.innerHTML = `<a href="${data.url}" target="_blank" rel="noopener noreferrer">${data.title}</a>
+        <div class="d-flex">
+            <span class="badge bg-primary rounded-pill my-1 mx-1">
+                ${data.method == 'desktop' ? "<i class='bi bi-display' data-bs-toggle='tooltip' title='Desktop'></i>" : data.method == 'mobile' ? "<i class='bi bi-phone' data-bs-toggle='tooltip' title='Mobile'></i>" : "<i class='bi bi-terminal' data-bs-toggle='tooltip' title='Terminal'></i>"}
+            </span>
+            <span class="badge bg-primary rounded-pill my-1 mx-1">
+                ${new Date(data.time).toLocaleString()}
+            </span>
+            <span hidden id="ignoreCookies">${data.ignoreCookies}</span>
+            <span hidden id="url">${data.url}</span>
+            <span hidden id="method">${data.method}</span>
+            <button class="btn btn-sm btn-primary ms-2" data-bs-toggle="collapse" id="repeat" data-bs-target="#${data._id}">Repeat</button>
+        </div>`
+                ul.insertBefore(li, ul.firstChild)
+
+                let tooltipTrigger = document.querySelector(`#li${data.time} [data-bs-toggle="tooltip"]`)
+                let tooltip = new bootstrap.Tooltip(tooltipTrigger)
+
+
+
             })
+
+
         })
 
     </script>

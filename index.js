@@ -85,11 +85,12 @@ app.get('/auth/discord/callback',
 app.get('/', (req, res) => {
   if (!req.isAuthenticated()) return res.render("index");
   var userDB = db.getKey(req.user.id);
-  if (!userDB) {
+  if (!userDB || !userDB.crawls) {
     db.setKey(req.user.id, { crawls: [] });
+    userDB = db.getKey(req.user.id);
   }
 
-  res.render('main', { userId: req.user.id, userDB });
+  res.render('main', { userId: req.user.id, userDB, sortedCrawls: (a,b) => b.time - a.time });
 });
 
 let screenshots = [];
@@ -199,9 +200,12 @@ io.on('connection', socket => {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
 
+      infos.time = time;
+      infos.ignoreCookies = ignoreCookies;
       socket.emit('progress', 100);
       socket.emit('crawl', infos);
       var userDB = db.getKey(userId)
+      userDB.crawls = userDB.crawls || [];
       userDB.crawls.push(infos);
       db.setKey(userId, userDB);
       await browser.close();
@@ -221,9 +225,10 @@ io.on('connection', socket => {
         .then(response => response.text())
         .then(text => {
           socket.emit('progress', 100);
-          socket.emit('crawl', { method: 'curl', title: url, url: url, text: convert.toHtml(text) });
+          socket.emit('crawl', { method: 'curl', title: url, url: url, text: convert.toHtml(text), time: new Date().getTime(), ignoreCookies: false });
           var userDB = db.getKey(userId)
-          userDB.crawls.push({ method: 'curl', title: url, url: url, text: convert.toHtml(text) });
+          userDB.crawls = userDB.crawls || [];
+          userDB.crawls.push({ method: 'curl', title: url, url: url, text: convert.toHtml(text), time: new Date().getTime(), ignoreCookies: false });
           db.setKey(userId, userDB);
         })
 
