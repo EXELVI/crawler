@@ -5,11 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Screenshots</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
-        crossorigin="anonymous"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 
 <body>
@@ -17,76 +14,122 @@
         <h1 class="text-center">Crawler</h1>
         <div class="row mt-5">
             <div class="col-12">
-                <form id="form" action="/api/crawl" method="POST">
+                <form id="form">
                     <div class="mb-3">
                         <label for="url" class="form-label">URL</label>
-                        <input type="text" class="form-control" id="url" name="url" required>
+                        <input type="text" class="form-control" id="url" name="url" <%=process.env.NODE_ENV
+                            !=='production' ? 'value=https://youtu.be/dQw4w9WgXcQ' : '' %> required>
                     </div>
-                    <button type="submit" class="btn btn-primary">Crawl</button>
+                    <div class="justify-content-between d-flex">
+                        <button type="submit" class="btn btn-primary">Crawl</button>
+                        <div class="dropdown">
+                            <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"
+                                aria-expanded="false">
+                                <i id="dropicon" class="bi bi-display"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><button id="desktop" class="dropdown-item" type="button">Desktop</button></li>
+                                <li><button id="mobile" class="dropdown-item" type="button">Mobile</button></li>
+                                <li><button id="curl" class="dropdown-item" type="button">Terminal</button></li>
+                            </ul>
+                        </div>
+                    </div>
                 </form>
             </div>
 
+            <div class="col-12 mt-5">
+                <div class="progress" hidden>
+                    <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0"
+                        aria-valuemax="100"></div>
+                </div>
+                <div id="result" class="row mt-5">
 
-            <div id="result" class="row mt-5">
-
+                </div>
             </div>
         </div>
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-            integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
-            crossorigin="anonymous"></script>
-        <script src="/socket.io/socket.io.js"></script>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="/socket.io/socket.io.js"></script>
 
 
-        <script>
-            const socket = io();
-            var myCarousel
-            var carousel
+    <script>
+        const socket = io();
+        var myCarousel
+        var carousel
+        var method = 'desktop'
 
-            socket.on('connect', function () {
-                console.log('%c Connected to the server', 'color: green; font-weight: bold; font-size: 16px;')
-            })
+        socket.on('connect', function () {
+            console.log('%c Connected to the server', 'color: green; font-weight: bold; font-size: 16px;')
+        })
 
-            socket.on('disconnect', function () {
-                console.log('%c Disconnected from the server', 'color: red; font-weight: bold; font-size: 16px;')
-            })
+        socket.on('disconnect', function () {
+            console.log('%c Disconnected from the server', 'color: red; font-weight: bold; font-size: 16px;')
+        })
 
-            socket.on("loading", function (data) {
-                console.log('%c Crawling...', 'color: #007bff; font-weight: bold; font-size: 16px;')
-                document.getElementById('result').innerHTML = `<div class="col-12 text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>`
-                document.querySelector('#form button').setAttribute('disabled', 'disabled')
+        socket.on("loading", function (data) {
+            console.log('%c Crawling...', 'color: #007bff; font-weight: bold; font-size: 16px;')
+            document.getElementById('result').innerHTML = `<div class="col-12 text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>`
+            document.querySelector('#form button').setAttribute('disabled', 'disabled')
+            document.querySelector('.progress').removeAttribute('hidden')
+        })
 
-            })
+        socket.on("progress", function (data) {
+            document.querySelector('.progress-bar').style.width = `${data}%`
+            document.querySelector('.progress-bar').setAttribute('aria-valuenow', data)
+        })
 
-            document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('click', function (e) {
+            if (e.target.id === 'desktop') {
+                method = 'desktop'
+                document.getElementById('dropicon').classList.remove('bi-phone')
+                document.getElementById('dropicon').classList.add('bi-display')
+                document.getElementById('dropicon').classList.remove('bi-terminal')
+            } else if (e.target.id === 'mobile') {
+                method = 'mobile'
+                document.getElementById('dropicon').classList.add('bi-phone')
+                document.getElementById('dropicon').classList.remove('bi-display')
+                document.getElementById('dropicon').classList.remove('bi-terminal')
+            } else if (e.target.id === 'curl') {
+                method = 'curl'
+                document.getElementById('dropicon').classList.remove('bi-phone')
+                document.getElementById('dropicon').classList.remove('bi-display')
+                document.getElementById('dropicon').classList.add('bi-terminal')
 
-                document.getElementById('form').addEventListener('submit', function (e) {
-                    e.preventDefault()
-                    var url = document.getElementById('url').value
-                    socket.emit('crawl', url)
+            }
+        })
+
+        document.addEventListener('DOMContentLoaded', function () {
+
+            document.getElementById('form').addEventListener('submit', function (e) {
+                e.preventDefault()
+                var url = document.getElementById('url').value
+                socket.emit('crawl', {
+                    url,
+                    method
                 })
+            })
 
-                socket.on('crawl', function (data) {
-                    if (myCarousel) {
-                        carousel.dispose()
-                    }
-                    document.querySelector('#form button').removeAttribute('disabled')
-                    var result = document.getElementById('result')
-                    result.innerHTML = ''
-                    var div = document.createElement('div')
-                    div.classList.add('col-12')
-                    div.innerHTML = ` <h2>${data.title}</h2>
-        <h3>${data.url}</h3>
+            socket.on('crawl', function (data) {
+                if (myCarousel) {
+                    carousel.dispose()
+                }
+                document.querySelector('#form button').removeAttribute('disabled')
+                var result = document.getElementById('result')
+                result.innerHTML = ''
+                var div = document.createElement('div')
+                div.classList.add('col-12')
+                div.innerHTML = ` <h2 href="${data.url}" class="text-center">${data.title}</h2>
         <div id="carouselIndicators" class="carousel slide" data-bs-ride="carousel">
             <div class="carousel-inner">
                 ${data.screenshots.map((screenshot, index) => {
-                        return `<div class="carousel-item ${index === 0 ? 'active' : ''}">
+                    return `<div class="carousel-item ${index === 0 ? 'active' : ''}">
                     <img src="${screenshot}" class="d-block w-100" alt="...">
                     <div class="carousel-caption d-none d-md-block">
-                        <h5>${index + 1}</h5>
-                        <p>${500 * (index + 1)}ms</p>
+                        <h5 style="-webkit-text-stroke: 0.5px black;"> ${index + 1}</h5>
+                        <p style="-webkit-text-stroke: 0.5px black;">${500 * (index + 1)}ms</p>
                     </div>
                 </div>`
-                    }).join('')}
+                }).join('')}
             </div>
             <button class="carousel-control-prev" type="button" data-bs-target="#carouselIndicators" data-bs-slide="prev">
                 <span class="carousel-control-prev-icon" aria-hidden="true"></span>
@@ -98,18 +141,19 @@
             </button>
         </div>`
 
-                    myCarousel = document.querySelector('#carouselIndicators')
-                    carousel = new bootstrap.Carousel(myCarousel, {
-                        interval: 2000,
-                        wrap: false
-                    })
+                result.appendChild(div)
 
-                    result.appendChild(div)
-
+                myCarousel = document.querySelector('#carouselIndicators')
+                carousel = new bootstrap.Carousel(myCarousel, {
+                    interval: 2000,
+                    wrap: false
                 })
-            })
 
-        </script>
+
+            })
+        })
+
+    </script>
 </body>
 
 </html>
