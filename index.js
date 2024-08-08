@@ -7,7 +7,7 @@ const logger = require('morgan');
 const path = require('path');
 const socketIo = require('socket.io');
 const fs = require('fs');
-const { url } = require('inspector');
+const fetch = require('node-fetch');
 
 const app = express();
 const server = http.createServer(app);
@@ -35,9 +35,9 @@ let screenshots = [];
 async function cookieAccept(page) {
   if (page.url().includes('youtube')) {
     // aria-label="Accetta l'utilizzo dei cookie e di altri dati per le finalità descritte"
-    await page.waitForSelector('button[aria-label="Accetta l\'utilizzo dei cookie e di altri dati per le finalità descritte"]').catch(() => console.log('Cookie button not found')).then(async () => {
-      await page.click('button[aria-label="Accetta l\'utilizzo dei cookie e di altri dati per le finalità descritte"]')
-    });
+    if (await page.$('button[aria-label="Accetta l\'utilizzo dei cookie e di altri dati per le finalità descritte"]')) {
+      await page.click('button[aria-label="Accetta l\'utilizzo dei cookie e di altri dati per le finalità descritte"]');
+    }
   }
 
 }
@@ -60,62 +60,76 @@ io.on('connection', socket => {
 
   socket.on("crawl", async (data) => {
     let { url, method } = data;
-    const screenshotsDir = path.join(__dirname, 'screenshots');
-    if (!fs.existsSync(screenshotsDir)) {
-      fs.mkdirSync(screenshotsDir);
+    if (method === 'desktop' || method === 'mobile') {
+      const screenshotsDir = path.join(__dirname, 'screenshots');
+      if (!fs.existsSync(screenshotsDir)) {
+        fs.mkdirSync(screenshotsDir);
+      }
+      const browser = await puppeteer.launch({
+        headless: true,
+        executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
+        //userDataDir: 'C:\\Users\\exelv\\AppData\Local\\BraveSoftware\\Brave-Browser\\User Data',
+        defaultViewport: method === 'mobile' ? null : { width: 1920, height: 1080 }
+      });
+
+
+
+      socket.emit('loading', 'Loading page...');
+      const page = await browser.newPage()
+      await page.goto(url);
+
+      if (method == "mobile") {
+        await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1');
+        await page.emulate(puppeteer.KnownDevices['iPhone 15 Pro Max']);
+
+      }
+
+      socket.emit('progress', 33);
+
+      // await page.reload();
+
+
+      await page.waitForSelector('body');
+
+      socket.emit('progress', 66);
+      await cookieAccept(page);
+
+      socket.emit('progress', 100);
+
+
+      let time = new Date().getTime();
+
+      let infos = {
+        method: method,
+        title: await page.title(),
+        url: url,
+        screenshots: []
+      }
+
+      for (let i = 0; i < 10; i++) {
+        const screenshotPath = path.join(screenshotsDir, `${time}screenshot-${i}.png`);
+        screenshots.push({ id: socket.id, name: `${time}screenshot-${i}.png` });
+        await page.screenshot({ path: screenshotPath });
+        console.log(`Screenshot saved: ${screenshotPath}`);
+        infos.screenshots.push(`screenshots/${time}screenshot-${i}.png`);
+        socket.emit('progress', i * 10);
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      socket.emit('progress', 100);
+      socket.emit('crawl', infos);
+      await browser.close();
+    } else if (method == "curl") {
+      fetch(url, {
+        headers: {
+            "User-Agent": "curl/7.68.0"
+        }})
+        .then(response => response.text())
+        .then(text => {
+          socket.emit('crawl', { method: 'curl', title: url, url: url, text });
+        })
+
     }
-    const browser = await puppeteer.launch({
-      headless: true,
-      executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
-      //userDataDir: 'C:\\Users\\exelv\\AppData\Local\\BraveSoftware\\Brave-Browser\\User Data',
-      defaultViewport: method === 'mobile' ? { width: 375, height: 667 } : { width: 1920, height: 1080 }
-    });
-
-  
-    
-    socket.emit('loading', 'Loading page...');
-    const page = await browser.newPage()
-    await page.goto(url);
-
-    if (method == "mobile") {
-      await page.emulate(puppeteer.KnownDevices['iPhone 15 Pro Max']);      
-    }
-
-    socket.emit('progress', 33);
-
-    // await page.reload();
-
-
-    await page.waitForSelector('body');
-
-    socket.emit('progress', 66);
-    await cookieAccept(page);
-
-    socket.emit('progress', 100);
-
-
-    let time = new Date().getTime();
-
-    let infos = {
-      title: await page.title(),
-      url: url,
-      screenshots: []
-    }
-
-    for (let i = 0; i < 10; i++) {
-      const screenshotPath = path.join(screenshotsDir, `${time}screenshot-${i}.png`);
-      screenshots.push({ id: socket.id, name: `${time}screenshot-${i}.png` });
-      await page.screenshot({ path: screenshotPath });
-      console.log(`Screenshot saved: ${screenshotPath}`);
-      infos.screenshots.push(`screenshots/${time}screenshot-${i}.png`);
-      socket.emit('progress', i * 10);
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-
-    socket.emit('progress', 100);
-    socket.emit('crawl', infos);
-
-    await browser.close();
   });
 })
 

@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Screenshots</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 
@@ -48,7 +49,9 @@
             </div>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
     <script src="/socket.io/socket.io.js"></script>
 
 
@@ -116,20 +119,22 @@
                 document.querySelector('#form button').removeAttribute('disabled')
                 var result = document.getElementById('result')
                 result.innerHTML = ''
-                var div = document.createElement('div')
-                div.classList.add('col-12')
-                div.innerHTML = ` <h2 href="${data.url}" class="text-center">${data.title}</h2>
+
+                if (data.method == "mobile" || data.method == "desktop") {
+                    var div = document.createElement('div')
+                    div.classList.add('col-12')
+                    div.innerHTML = ` <h2 href="${data.url}" class="text-center">${data.title}</h2>
         <div id="carouselIndicators" class="carousel slide" data-bs-ride="carousel">
             <div class="carousel-inner">
                 ${data.screenshots.map((screenshot, index) => {
-                    return `<div class="carousel-item ${index === 0 ? 'active' : ''}">
+                        return `<div class="carousel-item ${index === 0 ? 'active' : ''}">
                     <img src="${screenshot}" class="d-block w-100" alt="...">
                     <div class="carousel-caption d-none d-md-block">
-                        <h5 style="-webkit-text-stroke: 0.5px black;"> ${index + 1}</h5>
-                        <p style="-webkit-text-stroke: 0.5px black;">${500 * (index + 1)}ms</p>
+                        <h5 style="-webkit-text-stroke: 0.5px ${getComputedStyle(document.body).getPropertyValue("--bs-body-color")};"> ${index + 1}</h5>
+                        <p style="-webkit-text-stroke: 0.5px ${getComputedStyle(document.body).getPropertyValue("--bs-body-color")};">${500 * (index + 1)}ms</p>
                     </div>
                 </div>`
-                }).join('')}
+                    }).join('')}
             </div>
             <button class="carousel-control-prev" type="button" data-bs-target="#carouselIndicators" data-bs-slide="prev">
                 <span class="carousel-control-prev-icon" aria-hidden="true"></span>
@@ -141,14 +146,19 @@
             </button>
         </div>`
 
-                result.appendChild(div)
+                    result.appendChild(div)
 
-                myCarousel = document.querySelector('#carouselIndicators')
-                carousel = new bootstrap.Carousel(myCarousel, {
-                    interval: 2000,
-                    wrap: false
-                })
-
+                    myCarousel = document.querySelector('#carouselIndicators')
+                    carousel = new bootstrap.Carousel(myCarousel, {
+                        interval: 2000,
+                        wrap: false
+                    })
+                } else if (data.method == "curl") {
+                    var div = document.createElement('div')
+                    div.classList.add('col-12')
+                    div.innerHTML = `<pre>${data.text}</pre>`
+                    result.appendChild(div)
+                }
 
             })
         })
