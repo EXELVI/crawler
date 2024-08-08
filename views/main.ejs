@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screenshots</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+
+<body>
+    <div class="position-absolute top-0 end-0 m-2">
+        <button id="darkMode" class="btn btn-dark">Dark</button>
+    </div>
+    <div class="container mt-5">
+        <h1 class="text-center">Crawler</h1>
+        <div class="row mt-5">
+            <div class="col-12">
+                <form id="form">
+                    <div class="mb-3">
+                        <label for="url" class="form-label">URL</label>
+                        <input type="text" class="form-control" id="url" name="url" <%=process.env.NODE_ENV
+                            !=='production' ? 'value=https://youtu.be/dQw4w9WgXcQ' : '' %> required>
+                    </div>
+                    <div class="justify-content-between d-flex">
+                        <button type="submit" class="btn btn-primary">Crawl</button>
+                        <div class="btn-group">
+                            <input type="checkbox" class="btn-check" id="auto" autocomplete="off">
+                            <label class="btn btn-secondary" for="auto">Ignore cookies popup</label>
+                            <div class="dropdown btn-group">
+                                <button class="btn btn-secondary dropdown-toggle" type="button"
+                                    data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i id="dropicon" class="bi bi-display"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><button id="desktop" class="dropdown-item" type="button">Desktop</button></li>
+                                    <li><button id="mobile" class="dropdown-item" type="button">Mobile</button></li>
+                                    <li><button id="curl" class="dropdown-item" type="button">Terminal</button></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="col-12 mt-5">
+                <div class="progress" hidden>
+                    <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0"
+                        aria-valuemax="100"></div>
+                </div>
+                <div class="alert alert-danger mt-1" role="alert" hidden></div>
+                <div id="result" class="row mt-4">
+
+                </div>
+            </div>
+            <div class="col-12 mt-5">
+                <div id="history" class="row mt-4">
+
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+    <script src="/socket.io/socket.io.js"></script>
+
+
+    <script>
+        const socket = io();
+        var myCarousel
+        var carousel
+        var method = 'desktop'
+
+        socket.on('connect', function () {
+            console.log('%c Connected to the server', 'color: green; font-weight: bold; font-size: 16px;')
+        })
+
+        socket.on('disconnect', function () {
+            console.log('%c Disconnected from the server', 'color: red; font-weight: bold; font-size: 16px;')
+        })
+
+        socket.on("loading", function (data) {
+            console.log('%c Crawling...', 'color: #007bff; font-weight: bold; font-size: 16px;')
+            document.getElementById('result').innerHTML = `<div class="col-12 text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>`
+            document.querySelector('#form button').setAttribute('disabled', 'disabled')
+            document.querySelector('.alert').setAttribute('hidden', 'hidden')
+            document.querySelector('.progress').removeAttribute('hidden')
+        })
+
+        socket.on("progress", function (data) {
+            document.querySelector('.progress-bar').style.width = `${data}%`
+            document.querySelector('.progress-bar').setAttribute('aria-valuenow', data)
+        })
+
+        document.addEventListener('click', function (e) {
+            if (e.target.id === 'desktop') {
+                method = 'desktop'
+                document.getElementById('dropicon').classList.remove('bi-phone')
+                document.getElementById('dropicon').classList.add('bi-display')
+                document.getElementById('dropicon').classList.remove('bi-terminal')
+            } else if (e.target.id === 'mobile') {
+                method = 'mobile'
+                document.getElementById('dropicon').classList.add('bi-phone')
+                document.getElementById('dropicon').classList.remove('bi-display')
+                document.getElementById('dropicon').classList.remove('bi-terminal')
+            } else if (e.target.id === 'curl') {
+                method = 'curl'
+                document.getElementById('dropicon').classList.remove('bi-phone')
+                document.getElementById('dropicon').classList.remove('bi-display')
+                document.getElementById('dropicon').classList.add('bi-terminal')
+
+            }
+        })
+
+        document.getElementById('auto').addEventListener('change', function (e) {
+            if (e.target.checked) {
+                document.querySelector("label[for='auto']").classList.remove('btn-secondary')
+                document.querySelector("label[for='auto']").classList.add('btn-success')
+            } else {
+                document.querySelector("label[for='auto']").classList.add('btn-secondary')
+                document.querySelector("label[for='auto']").classList.remove('btn-success')
+            }
+        })
+
+        function changeTheme(theme) {
+            var themeButton = document.getElementById('darkMode');
+            if (!theme) {
+                var temaaaStorage = localStorage.getItem('theme');
+                if (temaaaStorage != "dark") {
+                    document.body.setAttribute('data-bs-theme', "dark");
+                    localStorage.setItem('theme', "dark");
+                }
+                else {
+                    document.body.setAttribute('data-bs-theme', "light");
+                    localStorage.setItem('theme', "light")
+                }
+            } else if (theme === 'dark' || theme === 'light') {
+                document.body.setAttribute('data-bs-theme', theme);
+                localStorage.setItem('theme', theme);
+                themeButton.innerHTML = theme === 'dark' ? "<div><i class=\"bi bi-sun-fill\"></i></div>" : "<div><i class=\"bi bi-moon-stars-fill\"></i></div>";
+                themeButton.classList = theme === 'dark' ? "btn btn-light" : "btn btn-dark";
+            }
+            const themeS = localStorage.getItem('theme');
+            for (let i = 0; i < 720; i++) {
+                setTimeout(() => {
+                    document.querySelector('#darkMode div').style.transform = `rotate(${i}deg)`;
+                    if (i == 360) {
+                        themeButton.innerHTML = themeS === 'dark' ? "<div><i class=\"bi bi-sun-fill\"></i></div>" : "<div><i class=\"bi bi-moon-stars-fill\"></i></div>";
+                        themeButton.classList = themeS === 'dark' ? "btn btn-light" : "btn btn-dark";
+                    }
+                }, i * 1);
+            }
+        }
+
+        const theme = localStorage.getItem('theme');
+        changeTheme(theme);
+
+        document.getElementById('darkMode').addEventListener('click', () => {
+            changeTheme();
+        });
+
+
+        document.addEventListener('DOMContentLoaded', function () {
+
+            document.getElementById('form').addEventListener('submit', function (e) {
+                e.preventDefault()
+                var url = document.getElementById('url').value
+                socket.emit('crawl', {
+                    url,
+                    method,
+                    ignoreCookies: document.getElementById('auto').checked,
+                    userId: "<%=userId%>"
+                    
+                })
+            })
+
+            socket.on('crawl', function (data) {
+                if (myCarousel) {
+                    carousel.dispose()
+                }
+                document.querySelector('#form button').removeAttribute('disabled')
+                var result = document.getElementById('result')
+                result.innerHTML = ''
+
+                if (data.method == "mobile" || data.method == "desktop") {
+                    var div = document.createElement('div')
+                    div.classList.add('col-12')
+                    div.innerHTML = ` <a href="${data.url}" class="text-center h2" target="_blank" rel="noopener noreferrer">${data.title}</a>
+        <div id="carouselIndicators" class="carousel slide" data-bs-ride="carousel">
+            <div class="carousel-inner">
+                ${data.screenshots.map((screenshot, index) => {
+                        return `<div class="carousel-item ${index === 0 ? 'active' : ''}">
+                    <img src="${screenshot}" class="d-block w-100" alt="...">
+                    <div class="carousel-caption d-none d-md-block">
+                        <h5 style="-webkit-text-stroke: 0.5px ${getComputedStyle(document.body).getPropertyValue("--bs-body-color")};"> ${index + 1}</h5>
+                        <p style="-webkit-text-stroke: 0.5px ${getComputedStyle(document.body).getPropertyValue("--bs-body-color")};">${500 * (index + 1)}ms</p>
+                    </div>
+                </div>`
+                    }).join('')}
+            </div>
+            <button class="carousel-control-prev" type="button" data-bs-target="#carouselIndicators" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Previous</span> 
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#carouselIndicators" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Next</span>
+            </button>
+        </div>`
+
+                    result.appendChild(div)
+
+                    if (data.rickroll) {
+                        document.querySelector('.alert').innerHTML = 'Warning! Page may be a rickroll'
+                        document.querySelector('.alert').removeAttribute('hidden')
+                    } else {
+                        document.querySelector('.alert').setAttribute('hidden', 'hidden')
+
+                    }
+
+                    myCarousel = document.querySelector('#carouselIndicators')
+                    carousel = new bootstrap.Carousel(myCarousel, {
+                        interval: 2000,
+                        wrap: false
+                    })
+                } else if (data.method == "curl") {
+                    var div = document.createElement('div')
+                    div.classList.add('col-12')
+                    div.innerHTML = `<pre>${data.text}</pre>`
+                    result.appendChild(div)
+                }
+
+            })
+        })
+
+    </script>
+</body>
+
+</html>

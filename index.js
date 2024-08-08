@@ -15,6 +15,48 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
+var DiscordStrategy = require('passport-discord').Strategy;
+var passport = require('passport');
+var session = require('express-session');
+
+var scopes = ['identify'];
+
+var db = {
+    get: function () {
+        return JSON.parse(fs.readFileSync('db.json'));
+    },
+    setKey: function (key, value) {
+        var data = this.get();
+        data[key] = value;
+        fs.writeFileSync('db.json', JSON.stringify(data, null, 2));
+    },
+    getKey: function (key) {
+        return this.get()[key];
+    },
+    set: function (data) {
+        fs.writeFileSync('db.json', JSON.stringify(data, null, 2));
+    }
+}
+
+passport.use(new DiscordStrategy({
+  clientID: process.env.CLIENT_ID,
+  clientSecret: process.env.CLIENT_SECRET,
+  callbackURL: 'http://localhost:3000/auth/discord/callback',
+  scope: scopes
+},
+  function (accessToken, refreshToken, profile, done) {
+      process.nextTick(function () {
+          return done(null, profile);
+      });
+  }
+));
+passport.serializeUser(function (user, done) {
+  done(null, user);
+});
+passport.deserializeUser(function (obj, done) {
+  done(null, obj);
+});
+
 const extensionPath = path.join(__dirname, 'ISDCAC-chrome-source');
 app.use(logger('dev'));
 app.use(bodyParser.json());
@@ -22,11 +64,32 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use("/screenshots", express.static(path.join(__dirname, 'screenshots')));
 app.set('view engine', 'ejs');
+app.use(session({
+  secret: 'super-super-secret:)',
+  resave: false,
+  saveUninitialized: false
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+app.get('/auth/discord', passport.authenticate('discord'));
+
+app.get('/auth/discord/callback',
+    passport.authenticate('discord', { failureRedirect: '/' }),
+    (req, res) => {
+        res.redirect('/');
+    }
+);
 
 app.get('/', (req, res) => {
-  const screenshotsDir = path.join(__dirname, 'screenshots');
-  const screenshots = fs.readdirSync(screenshotsDir).map(file => `screenshots/${file}`);
-  res.render('index', { screenshots });
+  if (!req.isAuthenticated()) return res.render("index");
+  var userDB = db.getKey(req.user.id);
+  if (!userDB) {
+    db.setKey(req.user.id, { crawls: [] });
+  }
+
+  res.render('main', { userId: req.user.id, userDB });
 });
 
 let screenshots = [];
@@ -66,7 +129,7 @@ io.on('connection', socket => {
   });
 
   socket.on("crawl", async (data) => {
-    let { url, method, ignoreCookies } = data;
+    let { url, method, ignoreCookies, userId } = data;
     if (method === 'desktop' || method === 'mobile') {
       const screenshotsDir = path.join(__dirname, 'screenshots');
       if (!fs.existsSync(screenshotsDir)) {
@@ -138,6 +201,9 @@ io.on('connection', socket => {
 
       socket.emit('progress', 100);
       socket.emit('crawl', infos);
+      var userDB = db.getKey(userId)
+      userDB.crawls.push(infos);
+      db.setKey(userId, userDB);
       await browser.close();
 
 
@@ -156,6 +222,9 @@ io.on('connection', socket => {
         .then(text => {
           socket.emit('progress', 100);
           socket.emit('crawl', { method: 'curl', title: url, url: url, text: convert.toHtml(text) });
+          var userDB = db.getKey(userId)
+          userDB.crawls.push({ method: 'curl', title: url, url: url, text: convert.toHtml(text) });
+          db.setKey(userId, userDB);
         })
 
     }

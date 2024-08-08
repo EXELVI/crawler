@@ -1,3 +1,5 @@
 node_modules/
 screenshots/
 ISDCAC-chrome-source/
+.env
+db.json
