@@ -14,36 +14,101 @@
 
 <body>
     <div class="container mt-5">
-        <h1 class="text-center">Screenshots</h1>
-
-        <div id="carouselIndicators" class="carousel slide">
-            <div class="carousel-inner">
-                <% screenshots.forEach((screenshot, index)=> { %>
-                    <div class="carousel-item <%= index === 0 ? 'active' : '' %>">
-                        <img class="d-block w-100" src="<%= screenshot %>" alt="Screenshot <%= index %>">
+        <h1 class="text-center">Crawler</h1>
+        <div class="row mt-5">
+            <div class="col-12">
+                <form id="form" action="/api/crawl" method="POST">
+                    <div class="mb-3">
+                        <label for="url" class="form-label">URL</label>
+                        <input type="text" class="form-control" id="url" name="url" required>
                     </div>
-                    <% }) %>
+                    <button type="submit" class="btn btn-primary">Crawl</button>
+                </form>
+            </div>
+
+
+            <div id="result" class="row mt-5">
+
+            </div>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+            crossorigin="anonymous"></script>
+        <script src="/socket.io/socket.io.js"></script>
+
+
+        <script>
+            const socket = io();
+            var myCarousel
+            var carousel
+
+            socket.on('connect', function () {
+                console.log('%c Connected to the server', 'color: green; font-weight: bold; font-size: 16px;')
+            })
+
+            socket.on('disconnect', function () {
+                console.log('%c Disconnected from the server', 'color: red; font-weight: bold; font-size: 16px;')
+            })
+
+            socket.on("loading", function (data) {
+                console.log('%c Crawling...', 'color: #007bff; font-weight: bold; font-size: 16px;')
+                document.getElementById('result').innerHTML = `<div class="col-12 text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>`
+                document.querySelector('#form button').setAttribute('disabled', 'disabled')
+
+            })
+
+            document.addEventListener('DOMContentLoaded', function () {
+
+                document.getElementById('form').addEventListener('submit', function (e) {
+                    e.preventDefault()
+                    var url = document.getElementById('url').value
+                    socket.emit('crawl', url)
+                })
+
+                socket.on('crawl', function (data) {
+                    if (myCarousel) {
+                        carousel.dispose()
+                    }
+                    document.querySelector('#form button').removeAttribute('disabled')
+                    var result = document.getElementById('result')
+                    result.innerHTML = ''
+                    var div = document.createElement('div')
+                    div.classList.add('col-12')
+                    div.innerHTML = ` <h2>${data.title}</h2>
+        <h3>${data.url}</h3>
+        <div id="carouselIndicators" class="carousel slide" data-bs-ride="carousel">
+            <div class="carousel-inner">
+                ${data.screenshots.map((screenshot, index) => {
+                        return `<div class="carousel-item ${index === 0 ? 'active' : ''}">
+                    <img src="${screenshot}" class="d-block w-100" alt="...">
+                    <div class="carousel-caption d-none d-md-block">
+                        <h5>${index + 1}</h5>
+                        <p>${500 * (index + 1)}ms</p>
+                    </div>
+                </div>`
+                    }).join('')}
             </div>
             <button class="carousel-control-prev" type="button" data-bs-target="#carouselIndicators" data-bs-slide="prev">
                 <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Previous</span>
+                <span class="visually-hidden">Previous</span> 
             </button>
             <button class="carousel-control-next" type="button" data-bs-target="#carouselIndicators" data-bs-slide="next">
                 <span class="carousel-control-next-icon" aria-hidden="true"></span>
                 <span class="visually-hidden">Next</span>
             </button>
-        </div>
-    </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
-        crossorigin="anonymous"></script>
+        </div>`
 
-        <script>
-            var myCarousel = document.querySelector('#carouselIndicators')
-            var carousel = new bootstrap.Carousel(myCarousel, {
-                interval: 2000,
-                wrap: false
+                    myCarousel = document.querySelector('#carouselIndicators')
+                    carousel = new bootstrap.Carousel(myCarousel, {
+                        interval: 2000,
+                        wrap: false
+                    })
+
+                    result.appendChild(div)
+
+                })
             })
+
         </script>
 </body>
 
