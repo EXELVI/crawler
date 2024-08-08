@@ -11,6 +11,9 @@
 </head>
 
 <body>
+    <div class="position-absolute top-0 end-0 m-2">
+        <button id="darkMode" class="btn btn-dark">Dark</button>
+    </div>
     <div class="container mt-5">
         <h1 class="text-center">Crawler</h1>
         <div class="row mt-5">
@@ -25,7 +28,7 @@
                         <button type="submit" class="btn btn-primary">Crawl</button>
                         <div class="btn-group">
                             <input type="checkbox" class="btn-check" id="auto" autocomplete="off">
-                            <label class="btn btn-secondary" for="auto">Wait cookies consent</label>
+                            <label class="btn btn-secondary" for="auto">Ignore cookies popup</label>
                             <div class="dropdown btn-group">
                                 <button class="btn btn-secondary dropdown-toggle" type="button"
                                     data-bs-toggle="dropdown" aria-expanded="false">
@@ -117,6 +120,44 @@
             }
         })
 
+        function changeTheme(theme) {
+            var themeButton = document.getElementById('darkMode');
+            if (!theme) {
+                var temaaaStorage = localStorage.getItem('theme');
+                if (temaaaStorage != "dark") {
+                    document.body.setAttribute('data-bs-theme', "dark");
+                    localStorage.setItem('theme', "dark");
+                }
+                else {
+                    document.body.setAttribute('data-bs-theme', "light");
+                    localStorage.setItem('theme', "light")
+                }
+            } else if (theme === 'dark' || theme === 'light') {
+                document.body.setAttribute('data-bs-theme', theme);
+                localStorage.setItem('theme', theme);
+                themeButton.innerHTML = theme === 'dark' ? "<div><i class=\"bi bi-sun-fill\"></i></div>" : "<div><i class=\"bi bi-moon-stars-fill\"></i></div>";
+                themeButton.classList = theme === 'dark' ? "btn btn-light" : "btn btn-dark";
+            }
+            const themeS = localStorage.getItem('theme');
+            for (let i = 0; i < 720; i++) {
+                setTimeout(() => {
+                    document.querySelector('#darkMode div').style.transform = `rotate(${i}deg)`;
+                    if (i == 360) {
+                        themeButton.innerHTML = themeS === 'dark' ? "<div><i class=\"bi bi-sun-fill\"></i></div>" : "<div><i class=\"bi bi-moon-stars-fill\"></i></div>";
+                        themeButton.classList = themeS === 'dark' ? "btn btn-light" : "btn btn-dark";
+                    }
+                }, i * 1);
+            }
+        }
+
+        const theme = localStorage.getItem('theme');
+        changeTheme(theme);
+
+        document.getElementById('darkMode').addEventListener('click', () => {
+            changeTheme();
+        });
+
+
         document.addEventListener('DOMContentLoaded', function () {
 
             document.getElementById('form').addEventListener('submit', function (e) {
@@ -125,7 +166,7 @@
                 socket.emit('crawl', {
                     url,
                     method,
-                    waitCookies: document.getElementById('auto').checked
+                    ignoreCookies: document.getElementById('auto').checked
                 })
             })
 

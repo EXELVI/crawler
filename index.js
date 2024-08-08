@@ -15,6 +15,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
+const extensionPath = path.join(__dirname, 'ISDCAC-chrome-source');
 app.use(logger('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -29,35 +30,6 @@ app.get('/', (req, res) => {
 });
 
 let screenshots = [];
-
-/**
- * 
- * @param {puppeteer.Page} page  
- */
-async function cookieAccept(page, waitCookies) {
-  await page.waitForNavigation({ waitUntil: 'domcontentloaded' }).then(async () => {
-    if (new URL(page.url()).hostname.includes('youtube')) {
-      // aria-label="Accetta l'utilizzo dei cookie e di altri dati per le finalità descritte"
-      if (waitCookies) await page.waitForSelector('button[aria-label="Accetta l\'utilizzo dei cookie e di altri dati per le finalità descritte"]');
-      if (await page.$('button[aria-label="Accetta l\'utilizzo dei cookie e di altri dati per le finalità descritte"]')) {
-        await page.click('button[aria-label="Accetta l\'utilizzo dei cookie e di altri dati per le finalità descritte"]');
-      }
-    } else if (new URL(page.url()).hostname.includes('google')) {
-      const [button] = await page.$x("//button[contains(., 'Accetta tutto')]");
-      if (waitCookies) {
-        if (!button) {
-          setTimeout(async () => {
-            await page.waitForSelector('xpath///a[contains(text(), "Accetta tutto")]');
-            let [button] = page.$x("//button[contains(., 'Accetta tutto')]");
-            if (button) await button.click();
-          },1000)
-        }
-            }
-      if (button) await button.click();
-    }
-  }).catch(() => { });
-
-}
 
 /**
  * 
@@ -94,7 +66,7 @@ io.on('connection', socket => {
   });
 
   socket.on("crawl", async (data) => {
-    let { url, method, waitCookies } = data;
+    let { url, method, ignoreCookies } = data;
     if (method === 'desktop' || method === 'mobile') {
       const screenshotsDir = path.join(__dirname, 'screenshots');
       if (!fs.existsSync(screenshotsDir)) {
@@ -104,40 +76,41 @@ io.on('connection', socket => {
         headless: true,
         executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
         //userDataDir: 'C:\\Users\\exelv\\AppData\Local\\BraveSoftware\\Brave-Browser\\User Data',
-        defaultViewport: method === 'mobile' ? null : { width: 1920, height: 1080 }
+        defaultViewport: method === 'mobile' ? null : { width: 1920, height: 1080 },
+        args: ignoreCookies ? [
+          `--disable-extensions-except=${extensionPath}`,
+          `--load-extension=${extensionPath}`
+        ] : []
       });
 
 
 
       socket.emit('loading', 'Loading page...');
       const page = await browser.newPage()
+
+      socket.emit('progress', 20);
+
       if (!url.startsWith('http')) {
         url = `http://${url}`;
       }
       await page.goto(url);
 
+      socket.emit('progress', 40);
+
       await page.reload()
+
+      socket.emit('progress', 60);
 
       if (method == "mobile") {
         await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1');
+        socket.emit('progress', 66);
         await page.emulate(puppeteer.KnownDevices['iPhone 15 Pro Max']);
-
+        socket.emit('progress', 72);
       }
 
-      socket.emit('progress', 33);
+      //await page.waitForSelector('body');
 
-      await page.waitForSelector('body');
-
-      socket.emit('progress', 66);
-
-      if (waitCookies) {
-        await cookieAccept(page);
-      } else {
-        cookieAccept(page);
-      }
-
-      socket.emit('progress', 100);
-
+      socket.emit('progress', 80);
 
       let time = new Date().getTime();
 
@@ -148,6 +121,7 @@ io.on('connection', socket => {
         screenshots: [],
         rickroll: await getRickRoll(page)
       }
+      socket.emit('progress', 100);
 
       for (let i = 0; i < 10; i++) {
         const screenshotPath = path.join(screenshotsDir, time.toString(), `screenshot-${i}.png`);
@@ -164,7 +138,7 @@ io.on('connection', socket => {
 
       socket.emit('progress', 100);
       socket.emit('crawl', infos);
-      //  await browser.close();
+      await browser.close();
 
 
     } else if (method == "curl") {
