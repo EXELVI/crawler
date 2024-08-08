@@ -43,7 +43,8 @@
                     <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0"
                         aria-valuemax="100"></div>
                 </div>
-                <div id="result" class="row mt-5">
+                <div class="alert alert-danger mt-1" role="alert" hidden></div>
+                <div id="result" class="row mt-4">
 
                 </div>
             </div>
@@ -73,6 +74,7 @@
             console.log('%c Crawling...', 'color: #007bff; font-weight: bold; font-size: 16px;')
             document.getElementById('result').innerHTML = `<div class="col-12 text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>`
             document.querySelector('#form button').setAttribute('disabled', 'disabled')
+            document.querySelector('.alert').setAttribute('hidden', 'hidden')
             document.querySelector('.progress').removeAttribute('hidden')
         })
 
@@ -123,7 +125,7 @@
                 if (data.method == "mobile" || data.method == "desktop") {
                     var div = document.createElement('div')
                     div.classList.add('col-12')
-                    div.innerHTML = ` <h2 href="${data.url}" class="text-center">${data.title}</h2>
+                    div.innerHTML = ` <a href="${data.url}" class="text-center h2" target="_blank" rel="noopener noreferrer">${data.title}</a>
         <div id="carouselIndicators" class="carousel slide" data-bs-ride="carousel">
             <div class="carousel-inner">
                 ${data.screenshots.map((screenshot, index) => {
@@ -147,6 +149,14 @@
         </div>`
 
                     result.appendChild(div)
+
+                    if (data.rickroll) {
+                        document.querySelector('.alert').innerHTML = 'Warning! Page may be a rickroll'
+                        document.querySelector('.alert').removeAttribute('hidden')
+                    } else {
+                        document.querySelector('.alert').setAttribute('hidden', 'hidden')
+
+                    }
 
                     myCarousel = document.querySelector('#carouselIndicators')
                     carousel = new bootstrap.Carousel(myCarousel, {

@@ -1,5 +1,6 @@
 {
 	"dependencies": {
+		"ansi-to-html": "^0.7.2",
 		"body-parser": "^1.20.2",
 		"bootstrap": "^5.3.3",
 		"dotenv": "^16.4.5",

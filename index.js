@@ -8,6 +8,8 @@ const path = require('path');
 const socketIo = require('socket.io');
 const fs = require('fs');
 const fetch = require('node-fetch');
+var Convert = require('ansi-to-html');
+var convert = new Convert();
 
 const app = express();
 const server = http.createServer(app);
@@ -33,13 +35,32 @@ let screenshots = [];
  * @param {puppeteer.Page} page  
  */
 async function cookieAccept(page) {
-  if (page.url().includes('youtube')) {
-    // aria-label="Accetta l'utilizzo dei cookie e di altri dati per le finalità descritte"
-    if (await page.$('button[aria-label="Accetta l\'utilizzo dei cookie e di altri dati per le finalità descritte"]')) {
-      await page.click('button[aria-label="Accetta l\'utilizzo dei cookie e di altri dati per le finalità descritte"]');
+  page.waitForNavigation({ waitUntil: 'domcontentloaded' }).then(async () => {
+    if (page.url().includes('youtube')) {
+      // aria-label="Accetta l'utilizzo dei cookie e di altri dati per le finalità descritte"
+      if (await page.$('button[aria-label="Accetta l\'utilizzo dei cookie e di altri dati per le finalità descritte"]')) {
+        await page.click('button[aria-label="Accetta l\'utilizzo dei cookie e di altri dati per le finalità descritte"]');
+      }
     }
-  }
+  }).catch(() => { });
 
+}
+
+/**
+ * 
+ * @param {puppeteer.Page} page
+ * @returns {boolean}
+ *  
+ * */
+async function getRickRoll(page) {
+  return page.url().includes('youtu.be/dQw4w9WgXcQ') || page.url().includes('watch?v=dQw4w9WgXcQ') || await page.evaluate(() => {
+    const title = document.title.toLowerCase();
+    return title.includes('rick roll') || title.includes('never gonna give you up') || title.includes('rickroll') || title.includes('rick astley');
+  }) || await page.evaluate(() => {
+    const title = document.querySelector('.slim-video-information-title .yt-core-attributed-string')?.textContent?.toLowerCase();
+    if (!title) return false;
+    return title.includes('rick roll') || title.includes('never gonna give you up') || title.includes('rickroll') || title.includes('rick astley');
+  });
 }
 
 var closed = false;
@@ -51,9 +72,10 @@ io.on('connection', socket => {
     console.log('Client disconnected');
     if (!closed) screenshots.forEach(screenshot => {
       if (screenshot.id === socket.id) {
-        screenshots = screenshots.filter(s => s !== screenshot);
-        console.log(`Removing screenshot: ${screenshot.name}`);
-        fs.unlinkSync(path.join(__dirname, 'screenshots', screenshot.name));
+        if (fs.existsSync(path.join(__dirname, 'screenshots', screenshot.folder))) {
+          fs.rmSync(path.join(__dirname, 'screenshots', screenshot.folder), { recursive: true });
+          console.log(`Screenshots deleted: ${screenshot.folder}`);
+        }
       }
     });
   });
@@ -66,7 +88,7 @@ io.on('connection', socket => {
         fs.mkdirSync(screenshotsDir);
       }
       const browser = await puppeteer.launch({
-        headless: true,
+        headless: false,
         executablePath: "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
         //userDataDir: 'C:\\Users\\exelv\\AppData\Local\\BraveSoftware\\Brave-Browser\\User Data',
         defaultViewport: method === 'mobile' ? null : { width: 1920, height: 1080 }
@@ -78,6 +100,8 @@ io.on('connection', socket => {
       const page = await browser.newPage()
       await page.goto(url);
 
+      await page.reload()
+
       if (method == "mobile") {
         await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1');
         await page.emulate(puppeteer.KnownDevices['iPhone 15 Pro Max']);
@@ -86,13 +110,10 @@ io.on('connection', socket => {
 
       socket.emit('progress', 33);
 
-      // await page.reload();
-
-
       await page.waitForSelector('body');
 
       socket.emit('progress', 66);
-      await cookieAccept(page);
+      cookieAccept(page);
 
       socket.emit('progress', 100);
 
@@ -102,31 +123,41 @@ io.on('connection', socket => {
       let infos = {
         method: method,
         title: await page.title(),
-        url: url,
-        screenshots: []
+        url: page.url(),
+        screenshots: [],
+        rickroll: await getRickRoll(page)
       }
 
       for (let i = 0; i < 10; i++) {
-        const screenshotPath = path.join(screenshotsDir, `${time}screenshot-${i}.png`);
-        screenshots.push({ id: socket.id, name: `${time}screenshot-${i}.png` });
+        const screenshotPath = path.join(screenshotsDir, time, `screenshot-${i}.png`);
+        screenshots.push({ id: socket.id, folder: time, name: `screenshot-${i}.png` });
         await page.screenshot({ path: screenshotPath });
         console.log(`Screenshot saved: ${screenshotPath}`);
-        infos.screenshots.push(`screenshots/${time}screenshot-${i}.png`);
+        infos.screenshots.push(`screenshots/${time}/screenshot-${i}.png`);
         socket.emit('progress', i * 10);
         await new Promise(resolve => setTimeout(resolve, 500));
       }
 
       socket.emit('progress', 100);
       socket.emit('crawl', infos);
-      await browser.close();
+      //  await browser.close();
+
+
     } else if (method == "curl") {
+      if (!url.startsWith('http')) {
+        url = `http://${url}`;
+      }
+      socket.emit('loading', 'Loading page...');
+      socket.emit('progress', 33);
       fetch(url, {
         headers: {
-            "User-Agent": "curl/7.68.0"
-        }})
+          "User-Agent": "curl/7.68.0"
+        }
+      })
         .then(response => response.text())
         .then(text => {
-          socket.emit('crawl', { method: 'curl', title: url, url: url, text });
+          socket.emit('progress', 100);
+          socket.emit('crawl', { method: 'curl', title: url, url: url, text: convert.toHtml(text) });
         })
 
     }
