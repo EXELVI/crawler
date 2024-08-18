@@ -1,6 +1,6 @@
 # [crawler](https://github.com/EXELVI/crawler)
 
-A simple crawler that makes ten screenshots every 10 seconds of the given URL.
+A simple crawler that makes ten screenshots every 500ms of the given URL.
 
 ![Screen](assets/screen.png)
 
